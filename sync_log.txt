@@ -1,0 +1,45 @@
+[2026-07-11 12:59:33] === Iniciando sincronización diaria ===
+[2026-07-11 12:59:34] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 12:59:40] Movimientos en el banco (89 días): 20 | Nuevos: 0
+[2026-07-11 12:59:40] Sin novedades. Fin.
+[2026-07-11 17:05:28] === Iniciando sincronización diaria ===
+[2026-07-11 17:05:30] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 17:05:34] Movimientos en el banco (89 días): 20 | Nuevos: 1
+[2026-07-11 17:05:34] ✅ Excel actualizado. 1 nuevos añadidos. 12 pendientes de revisión en total.
+[2026-07-11 17:05:34] === Fin ===
+
+[2026-07-11 17:35:00] === Iniciando sincronización diaria ===
+[2026-07-11 17:35:57] === Iniciando sincronización diaria ===
+[2026-07-11 17:38:17] === Iniciando sincronización diaria ===
+[2026-07-11 17:38:17] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 17:38:20] Movimientos en el banco (89 días): 20 | Nuevos: 1
+[2026-07-11 17:38:20] ✅ Excel actualizado. 1 nuevos añadidos. 12 pendientes de revisión en total.
+[2026-07-11 17:38:20] === Fin ===
+
+[2026-07-11 17:41:02] === Iniciando sincronización diaria ===
+[2026-07-11 17:41:03] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 17:41:05] ⚠️  Límite de consultas diarias alcanzado (429). Se reintentará mañana.
+[2026-07-11 17:42:03] === Iniciando sincronización diaria ===
+[2026-07-11 17:42:03] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 17:42:04] ⚠️  Límite de consultas diarias alcanzado (429). Se reintentará mañana.
+[2026-07-11 17:52:10] === Iniciando sincronización diaria ===
+[2026-07-11 17:52:11] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 17:52:13] ⚠️  Límite de consultas diarias alcanzado (429). Se reintentará mañana.
+[2026-07-11 17:53:10] === Iniciando sincronización diaria ===
+[2026-07-11 17:53:11] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 17:53:13] ⚠️  Límite de consultas diarias alcanzado (429). Se reintentará mañana.
+[2026-07-11 17:54:05] === Iniciando sincronización diaria ===
+[2026-07-11 17:54:05] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 17:54:07] ⚠️  Límite de consultas diarias alcanzado (429). Se reintentará mañana.
+[2026-07-11 17:58:23] === Iniciando sincronización diaria ===
+[2026-07-11 17:58:24] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 17:58:25] ⚠️  Límite de consultas diarias alcanzado (429). Se reintentará mañana.
+[2026-07-11 17:59:02] === Iniciando sincronización diaria ===
+[2026-07-11 17:59:02] ⚠️  AVISO: el consentimiento caduca en 8 días. Hay que renovarlo pronto.
+[2026-07-11 17:59:04] ⚠️  Límite de consultas diarias alcanzado (429). Se reintentará mañana.
+[2026-07-15 12:14:28] === Iniciando sincronización diaria ===
+[2026-07-15 12:14:28] ⚠️  AVISO: el consentimiento caduca en 4 días. Hay que renovarlo pronto.
+[2026-07-15 12:14:31] Movimientos en el banco (89 días): 20 | Nuevos: 11
+[2026-07-15 12:14:31] ✅ Excel actualizado. 11 nuevos añadidos. 20 pendientes de revisión en total.
+[2026-07-15 12:14:31] === Fin ===
+
