@@ -15,8 +15,11 @@ engine = create_engine(DATABASE_URL)
 def cargar_private_key():
     key_env = os.environ.get("SABADELL_PRIVATE_KEY")
     if key_env:
-        return key_env.encode()  # viene como texto desde la variable de entorno
-    return open(PRIVATE_KEY_PATH, "rb").read()  # fallback local
+        # Si los saltos de línea llegaron como texto literal "\n", los convertimos a saltos reales
+        key_env = key_env.replace("\\n", "\n")
+        return key_env.encode()
+    return open(PRIVATE_KEY_PATH, "rb").read()
+
 
 def generar_jwt(application_id):
     private_key = cargar_private_key()
