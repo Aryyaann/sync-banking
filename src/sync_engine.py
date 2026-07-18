@@ -50,6 +50,7 @@ def sync_negocio(business_id, bank_connection_id):
             f"https://api.enablebanking.com/accounts/{conexion['account_uid']}/transactions",
             headers=headers,
             params={"date_from": (date.today() - timedelta(days=89)).isoformat(), "date_to": date.today().isoformat()},
+            timeout=30,
         )
 
         if r.status_code == 429:
