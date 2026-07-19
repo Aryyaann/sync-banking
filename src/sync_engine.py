@@ -4,10 +4,14 @@ import requests
 from datetime import datetime, date, timedelta
 import uuid
 import os
+import json
+from anthropic import Anthropic
 
-# DATABASE_URL = "postgresql://postgres:MJxAMgWBOtQPpefwPUqvwgvPyaePcpnG@kodama.proxy.rlwy.net:50752/railway"
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:MJxAMgWBOtQPpefwPUqvwgvPyaePcpnG@kodama.proxy.rlwy.net:50752/railway")
-PRIVATE_KEY_PATH = "C:/Users/AryanHareshNarwaniDa/private_prod.key"
+anthropic_client = Anthropic()  # lee ANTHROPIC_API_KEY del entorno automáticamente
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("Falta la variable de entorno DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)
 
@@ -17,7 +21,6 @@ def cargar_private_key(env_var_name):
     if key_env:
         key_env = key_env.strip().replace("\\n", "\n").replace("\r\n", "\n")
         return key_env.encode()
-    # Fallback local para pruebas (ajusta la ruta si trabajas en local)
     local_path = f"./{env_var_name}.key"
     if os.path.exists(local_path):
         return open(local_path, "rb").read()
@@ -29,6 +32,34 @@ def generar_jwt(application_id, private_key_env_var):
     iat = int(datetime.now().timestamp())
     jwt_body = {"iss": "enablebanking.com", "aud": "api.enablebanking.com", "iat": iat, "exp": iat + 3600}
     return pyjwt.encode(jwt_body, private_key, algorithm="RS256", headers={"kid": application_id})
+
+
+def categorizar_con_ia(contraparte, concepto_banco, importe, tipo, categorias_existentes):
+    categorias_str = ", ".join(categorias_existentes) if categorias_existentes else "ninguna categoría previa"
+    prompt = f"""Eres un asistente de contabilidad. Clasifica esta transacción bancaria de la forma más precisa posible.
+
+Contraparte: {contraparte or "desconocida"}
+Concepto del banco: {concepto_banco or "sin concepto"}
+Importe: {importe} EUR
+Tipo: {tipo}
+
+Categorías ya usadas por este negocio: {categorias_str}
+
+Responde SOLO con un JSON, sin explicación ni texto adicional, con este formato exacto:
+{{"concepto_detallado": "descripción corta y clara en español", "categoria": "nombre de categoría, reutiliza una de las existentes si encaja razonablemente"}}"""
+
+    try:
+        response = anthropic_client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=100,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        texto = response.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+        resultado = json.loads(texto)
+        return resultado.get("concepto_detallado", "⚠️ REVISAR"), resultado.get("categoria")
+    except Exception as e:
+        print(f"  [IA] Error categorizando: {e}")
+        return "⚠️ REVISAR", None
 
 
 def sync_negocio(business_id, bank_connection_id):
@@ -82,7 +113,14 @@ def sync_negocio(business_id, bank_connection_id):
                     return rg["concepto_detallado"], rg["categoria"]
             return "⚠️ REVISAR", None
 
+        categorias_existentes = [row[0] for row in conn.execute(text("""
+            SELECT DISTINCT categoria FROM transactions WHERE business_id = :bid AND categoria IS NOT NULL
+        """), {"bid": business_id}).fetchall()]
+
+        MAX_LLAMADAS_IA_POR_SYNC = 50
+        llamadas_ia = 0
         nuevos = 0
+
         for t in transacciones:
             ref_unica = f"{t.get('entry_reference')}_{t.get('booking_date')}_{t['transaction_amount']['amount']}"
             iban = ((t.get("creditor_account") or {}).get("iban") or (t.get("debtor_account") or {}).get("iban") or "")
@@ -92,13 +130,28 @@ def sync_negocio(business_id, bank_connection_id):
             texto = f"{contraparte or ''} {concepto_banco}".upper()
 
             concepto_detallado, categoria = aplicar_reglas(iban, importe, texto)
+            fuente = "regla"
+
+            if concepto_detallado == "⚠️ REVISAR" and llamadas_ia < MAX_LLAMADAS_IA_POR_SYNC:
+                tipo_mov = "Entrada" if t.get("credit_debit_indicator") == "CRDT" else "Salida"
+                concepto_ia, categoria_ia = categorizar_con_ia(contraparte, concepto_banco, importe, tipo_mov, categorias_existentes)
+                llamadas_ia += 1
+                if concepto_ia != "⚠️ REVISAR":
+                    concepto_detallado, categoria = concepto_ia, categoria_ia
+                    fuente = "ia"
+                    if categoria and categoria not in categorias_existentes:
+                        categorias_existentes.append(categoria)
+                else:
+                    fuente = None
+            elif concepto_detallado == "⚠️ REVISAR":
+                fuente = None
 
             result = conn.execute(text("""
                 INSERT INTO transactions
                 (id, business_id, bank_connection_id, referencia_unica, fecha, importe, moneda,
-                 tipo, contraparte, iban_contraparte, concepto_banco, concepto_detallado, categoria, referencia)
+                 tipo, contraparte, iban_contraparte, concepto_banco, concepto_detallado, categoria, referencia, categorizado_por)
                 VALUES (:id, :bid, :bcid, :ref, :fecha, :importe, :moneda, :tipo, :contraparte,
-                        :iban, :concepto_banco, :concepto_det, :categoria, :referencia)
+                        :iban, :concepto_banco, :concepto_det, :categoria, :referencia, :fuente)
                 ON CONFLICT (business_id, referencia_unica) DO NOTHING
             """), {
                 "id": str(uuid.uuid4()), "bid": business_id, "bcid": bank_connection_id,
@@ -107,7 +160,7 @@ def sync_negocio(business_id, bank_connection_id):
                 "tipo": "Entrada" if t.get("credit_debit_indicator") == "CRDT" else "Salida",
                 "contraparte": contraparte, "iban": iban, "concepto_banco": concepto_banco,
                 "concepto_det": concepto_detallado, "categoria": categoria,
-                "referencia": t.get("reference_number"),
+                "referencia": t.get("reference_number"), "fuente": fuente,
             })
             if result.rowcount > 0:
                 nuevos += 1
