@@ -8,3 +8,4 @@ pyjwt
 requests
 cryptography
 bcrypt
+anthropic
