@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 
 APPLICATION_ID = "82664702-7eca-48af-be56-fb7b69dea089"
-PRIVATE_KEY_PATH = "C:/Users/AryanHareshNarwaniDa/private_prod.key"
+PRIVATE_KEY_PATH = "C:/Users/perso/Downloads/private_prod.key"
 
 private_key = open(PRIVATE_KEY_PATH, "rb").read()
 
