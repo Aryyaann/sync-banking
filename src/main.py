@@ -76,7 +76,13 @@ def trigger_sync(current_user=Depends(get_current_user)):
     if not conexiones:
         raise HTTPException(status_code=404, detail="No hay conexión bancaria activa")
 
-    resultados = [sync_negocio(current_user["business_id"], str(c["id"])) for c in conexiones]
+    resultados = []
+    for c in conexiones:
+        try:
+            resultados.append(sync_negocio(current_user["business_id"], str(c["id"])))
+        except Exception as e:
+            resultados.append({"success": False, "error": str(e), "bank_connection_id": str(c["id"])})
+
     return {"success": all(r.get("success") for r in resultados), "resultados": resultados}
 
 @app.get("/support/products")
