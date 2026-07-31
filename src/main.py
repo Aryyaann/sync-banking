@@ -57,25 +57,27 @@ def login(email: str = Query(...), password: str = Query(...)):
 def get_transactions(current_user=Depends(get_current_user)):
     with engine.connect() as conn:
         rows = conn.execute(text("""
-            SELECT fecha, importe, moneda, tipo, contraparte, iban_contraparte,
-                   concepto_banco, concepto_detallado, categoria, referencia
-            FROM transactions WHERE business_id = :bid ORDER BY fecha DESC
+            SELECT t.fecha, t.importe, t.moneda, t.tipo, t.contraparte, t.iban_contraparte,
+                   t.concepto_banco, t.concepto_detallado, t.categoria, t.referencia,
+                   bc.account_label
+            FROM transactions t
+            JOIN bank_connections bc ON bc.id = t.bank_connection_id
+            WHERE t.business_id = :bid ORDER BY t.fecha DESC
         """), {"bid": current_user["business_id"]}).mappings().all()
     return {"count": len(rows), "transactions": [dict(r) for r in rows]}
-
 
 @app.post("/sync")
 def trigger_sync(current_user=Depends(get_current_user)):
     with engine.connect() as conn:
-        conexion = conn.execute(text("""
-            SELECT id FROM bank_connections WHERE business_id = :bid AND active = true LIMIT 1
-        """), {"bid": current_user["business_id"]}).mappings().first()
+        conexiones = conn.execute(text("""
+            SELECT id FROM bank_connections WHERE business_id = :bid AND active = true
+        """), {"bid": current_user["business_id"]}).mappings().all()
 
-    if not conexion:
+    if not conexiones:
         raise HTTPException(status_code=404, detail="No hay conexión bancaria activa")
 
-    resultado = sync_negocio(current_user["business_id"], str(conexion["id"]))
-    return resultado
+    resultados = [sync_negocio(current_user["business_id"], str(c["id"])) for c in conexiones]
+    return {"success": all(r.get("success") for r in resultados), "resultados": resultados}
 
 @app.get("/support/products")
 def support_products(authorization: str = Header(None)):
@@ -138,11 +140,13 @@ def export_excel(current_user=Depends(get_current_user)):
 
     with engine.connect() as conn:
         df = pd.read_sql(text("""
-            SELECT fecha, tipo, importe, moneda, contraparte, concepto_detallado,
-                   concepto_banco, categoria, iban_contraparte, referencia
-            FROM transactions WHERE business_id = :bid ORDER BY fecha
+            SELECT t.fecha, t.tipo, t.importe, t.moneda, t.contraparte, t.concepto_detallado,
+                t.concepto_banco, t.categoria, t.iban_contraparte, t.referencia,
+                bc.account_label
+            FROM transactions t
+            JOIN bank_connections bc ON bc.id = t.bank_connection_id
+            WHERE t.business_id = :bid ORDER BY t.fecha
         """), conn, params={"bid": current_user["business_id"]})
-
     if df.empty:
         raise HTTPException(status_code=404, detail="No hay movimientos para este negocio")
 
@@ -188,9 +192,9 @@ def export_excel(current_user=Depends(get_current_user)):
     ws_resumen.title = "Resumen"
     escribir_hoja(ws_resumen, df)
 
-    for categoria in sorted(df["categoria"].unique()):
-        subset = df[df["categoria"] == categoria]
-        nombre = limpiar_nombre_hoja(categoria)
+    for cuenta in sorted(df["account_label"].fillna("Sin etiquetar").unique()):
+        subset = df[df["account_label"].fillna("Sin etiquetar") == cuenta]
+        nombre = limpiar_nombre_hoja(cuenta)
         base, i = nombre, 1
         while nombre in wb.sheetnames:
             i += 1

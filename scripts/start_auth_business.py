@@ -27,7 +27,7 @@ base_headers = {"Authorization": f"Bearer {jwt_token}"}
 
 body = {
     "access": {
-        "valid_until": (datetime.now(timezone.utc) + timedelta(days=10)).isoformat()
+        "valid_until": (datetime.now(timezone.utc) + timedelta(days=90)).isoformat()
     },
     "aspsp": {"name": "Banco de Sabadell", "country": "ES"},
     "state": str(uuid.uuid4()),
