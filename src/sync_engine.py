@@ -77,19 +77,44 @@ def sync_negocio(business_id, bank_connection_id):
 
         headers = {"Authorization": f"Bearer {generar_jwt(conexion['application_id'], conexion['private_key_env_var'])}"}
 
-        r = requests.get(
-            f"https://api.enablebanking.com/accounts/{conexion['account_uid']}/transactions",
-            headers=headers,
-            params={"date_from": (date.today() - timedelta(days=89)).isoformat(), "date_to": date.today().isoformat()},
-            timeout=30,
-        )
+        # --- Paginación: recorre todas las páginas usando continuation_key ---
+        transacciones = []
+        continuation_key = None
+        paginas = 0
+        MAX_PAGINAS = 20  # límite de seguridad, evita bucles infinitos
 
-        if r.status_code == 429:
-            return {"success": False, "error": "Límite de consultas diarias alcanzado (429)", "aviso": aviso}
-        if r.status_code != 200:
-            return {"success": False, "error": f"Error {r.status_code}: {r.text}", "aviso": aviso}
+        while True:
+            params = {
+                "date_from": (date.today() - timedelta(days=89)).isoformat(),
+                "date_to": date.today().isoformat(),
+            }
+            if continuation_key:
+                params["continuation_key"] = continuation_key
 
-        transacciones = r.json().get("transactions", [])
+            r = requests.get(
+                f"https://api.enablebanking.com/accounts/{conexion['account_uid']}/transactions",
+                headers=headers,
+                params=params,
+                timeout=30,
+            )
+
+            if r.status_code == 429:
+                if transacciones:
+                    break  # ya tenemos algo de páginas anteriores, seguimos con eso
+                return {"success": False, "error": "Límite de consultas diarias alcanzado (429)", "aviso": aviso}
+            if r.status_code != 200:
+                if transacciones:
+                    break
+                return {"success": False, "error": f"Error {r.status_code}: {r.text}", "aviso": aviso}
+
+            data = r.json()
+            transacciones.extend(data.get("transactions", []))
+            continuation_key = data.get("continuation_key")
+            paginas += 1
+
+            if not continuation_key or paginas >= MAX_PAGINAS:
+                break
+        # --- fin paginación ---
 
         reglas = conn.execute(text("""
             SELECT rule_type, criterio, concepto_detallado, categoria

@@ -25,7 +25,7 @@ jwt_token = pyjwt.encode(
 
 base_headers = {"Authorization": f"Bearer {jwt_token}"}
 
-CODE = "7c7bc534-d95c-43c4-b9a3-6a5cf18d213f"
+CODE = "4d1e6ac3-63fb-48d1-a793-b869248b9b01"
 
 r = requests.post(
     "https://api.enablebanking.com/sessions",

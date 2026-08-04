@@ -5,4 +5,4 @@
 *.crt
 __pycache__/
 *.pyc
-.env
+*.MIS_IDS.md
