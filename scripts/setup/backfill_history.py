@@ -9,7 +9,7 @@ from sync_engine import generar_jwt, engine
 from sqlalchemy import text
 import uuid
 
-BANK_CONNECTION_ID = "1b8f9a0e-d17c-4eda-99eb-a982a6b97f6b"  # una cuenta cada vez
+BANK_CONNECTION_ID = "5b6bd0a2-b349-4c65-a30f-0fddad475755"  # una cuenta cada vez
 
 with engine.begin() as conn:
     conexion = conn.execute(text("""
