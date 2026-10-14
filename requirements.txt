@@ -13,3 +13,4 @@ bcrypt
 anthropic
 sentence-transformers
 numpy
+psycopg[binary]
