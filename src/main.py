@@ -7,6 +7,8 @@ from openpyxl.utils import get_column_letter
 import re
 import io
 import os
+from datetime import datetime
+from typing import Optional
 from sync_engine import sync_negocio, DATABASE_URL
 from auth import verify_password, create_access_token, get_current_user
 from sentence_transformers import SentenceTransformer
@@ -141,19 +143,52 @@ Responde en español, directo y práctico, citando el archivo fuente."""
 
 
 @app.get("/transactions/export")
-def export_excel(current_user=Depends(get_current_user)):
+def export_excel(
+    date_from: Optional[str] = Query(None, description="Fecha inicial inclusiva (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="Fecha final inclusiva (YYYY-MM-DD)"),
+    current_user=Depends(get_current_user),
+):
     import pandas as pd
 
+    def parsear_fecha(valor, nombre):
+        if valor is None:
+            return None
+        try:
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", valor):
+                raise ValueError
+            return datetime.strptime(valor, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail=f"El parámetro {nombre} debe ser una fecha válida con formato YYYY-MM-DD (recibido: '{valor}')",
+            )
+
+    desde = parsear_fecha(date_from, "date_from")
+    hasta = parsear_fecha(date_to, "date_to")
+    if desde and hasta and desde > hasta:
+        raise HTTPException(status_code=422, detail="date_from no puede ser posterior a date_to")
+
+    filtros = ""
+    params = {"bid": current_user["business_id"]}
+    if desde:
+        filtros += " AND t.fecha >= :date_from"
+        params["date_from"] = desde
+    if hasta:
+        filtros += " AND t.fecha <= :date_to"
+        params["date_to"] = hasta
+
     with engine.connect() as conn:
-        df = pd.read_sql(text("""
+        df = pd.read_sql(text(f"""
             SELECT t.fecha, t.tipo, t.importe, t.moneda, t.contraparte, t.concepto_detallado,
                 t.concepto_banco, t.categoria, t.iban_contraparte, t.referencia,
                 bc.account_label
             FROM transactions t
             JOIN bank_connections bc ON bc.id = t.bank_connection_id
-            WHERE t.business_id = :bid ORDER BY t.fecha
-        """), conn, params={"bid": current_user["business_id"]})
+            WHERE t.business_id = :bid{filtros} ORDER BY t.fecha
+        """), conn, params=params)
     if df.empty:
+        if desde or hasta:
+            raise HTTPException(status_code=404, detail="No hay movimientos en el rango seleccionado")
         raise HTTPException(status_code=404, detail="No hay movimientos para este negocio")
 
     df["categoria"] = df["categoria"].fillna("Sin categoria")
@@ -211,8 +246,13 @@ def export_excel(current_user=Depends(get_current_user)):
     wb.save(buffer)
     buffer.seek(0)
 
+    if desde or hasta:
+        filename = f"reporte_{desde or 'inicio'}_{hasta or 'fin'}.xlsx"
+    else:
+        filename = "reporte_completo.xlsx"
+
     return Response(
         content=buffer.read(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=reporte.xlsx"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
