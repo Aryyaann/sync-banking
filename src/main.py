@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, text
+from sqlalchemy import bindparam, create_engine, text
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -8,7 +8,7 @@ import re
 import io
 import os
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from sync_engine import sync_negocio, DATABASE_URL
 from auth import verify_password, create_access_token, get_current_user
 from sentence_transformers import SentenceTransformer
@@ -146,6 +146,7 @@ Responde en español, directo y práctico, citando el archivo fuente."""
 def export_excel(
     date_from: Optional[str] = Query(None, description="Fecha inicial inclusiva (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="Fecha final inclusiva (YYYY-MM-DD)"),
+    account: Optional[List[str]] = Query(None, description="account_label a exportar (repetible); sin valor = todas"),
     current_user=Depends(get_current_user),
 ):
     import pandas as pd
@@ -176,19 +177,27 @@ def export_excel(
     if hasta:
         filtros += " AND t.fecha <= :date_to"
         params["date_to"] = hasta
+    cuentas = [a for a in (account or []) if a and a.strip()]
+    if cuentas:
+        filtros += " AND COALESCE(bc.account_label, 'Sin etiquetar') IN :accounts"
+        params["accounts"] = cuentas
 
-    with engine.connect() as conn:
-        df = pd.read_sql(text(f"""
+    consulta = text(f"""
             SELECT t.fecha, t.tipo, t.importe, t.moneda, t.contraparte, t.concepto_detallado,
                 t.concepto_banco, t.categoria, t.iban_contraparte, t.referencia,
                 bc.account_label
             FROM transactions t
             JOIN bank_connections bc ON bc.id = t.bank_connection_id
             WHERE t.business_id = :bid{filtros} ORDER BY t.fecha
-        """), conn, params=params)
+        """)
+    if cuentas:
+        consulta = consulta.bindparams(bindparam("accounts", expanding=True))
+
+    with engine.connect() as conn:
+        df = pd.read_sql(consulta, conn, params=params)
     if df.empty:
-        if desde or hasta:
-            raise HTTPException(status_code=404, detail="No hay movimientos en el rango seleccionado")
+        if desde or hasta or cuentas:
+            raise HTTPException(status_code=404, detail="No hay movimientos con los filtros seleccionados")
         raise HTTPException(status_code=404, detail="No hay movimientos para este negocio")
 
     df["categoria"] = df["categoria"].fillna("Sin categoria")
@@ -246,10 +255,14 @@ def export_excel(
     wb.save(buffer)
     buffer.seek(0)
 
+    partes = ["reporte"]
+    if len(cuentas) == 1:
+        partes.append(re.sub(r"[^A-Za-z0-9_-]+", "-", cuentas[0]).strip("-") or "cuenta")
     if desde or hasta:
-        filename = f"reporte_{desde or 'inicio'}_{hasta or 'fin'}.xlsx"
+        partes += [str(desde or "inicio"), str(hasta or "fin")]
     else:
-        filename = "reporte_completo.xlsx"
+        partes.append("completo")
+    filename = "_".join(partes) + ".xlsx"
 
     return Response(
         content=buffer.read(),
