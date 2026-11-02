@@ -27,7 +27,7 @@ base_headers = {"Authorization": f"Bearer {jwt_token}"}
 
 body = {
     "access": {
-        "valid_until": (datetime.now(timezone.utc) + timedelta(days=180)).isoformat()
+        "valid_until": (datetime.now(timezone.utc) + timedelta(days=179)).isoformat()
     },
     "aspsp": {"name": "Abanca", "country": "ES"},
     "state": str(uuid.uuid4()),
