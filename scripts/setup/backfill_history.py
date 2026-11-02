@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 from sync_engine import generar_jwt, engine
 from sqlalchemy import text
 import uuid
