@@ -12,6 +12,14 @@ Estado de validación en este proyecto: **✅ validado end-to-end** = probado co
 - Particularidad detectada en pruebas propias: el sandbox del banco no trae datos de movimientos precargados — solo simula el flujo técnico (auth, autorización, listado de cuentas). Para ver transacciones reales hay que pasar a Restricted Production con una cuenta real.
 - Límite de consultas: PSD2 limita el número de accesos diarios sin usuario presente — en pruebas se alcanzó el límite (429 `HUB046`) tras varias ejecuciones seguidas en poco tiempo.
 
+## Abanca — ✅ validado end-to-end (2026-11-02)
+
+- `aspsp.name`: `"Abanca"`
+- Soporta `psu_type` `personal` y `business`.
+- Consentimiento máximo: 180 días (`maximum_consent_validity` = 15552000 s). Pedir exactamente 180 días devuelve 422 (`ASPSP does not support consent validity more than 15552000 seconds in the future`), así que usamos 179 por margen (`scripts/setup/start_auth_abanca.py`).
+- Historial máximo por API: 90 días. Un `date_from` anterior devuelve 422 (`Required parameter DateFrom must be within the last 90 days`), así que el backfill de una cuenta nueva de Abanca solo trae los últimos ~90 días (usar `days=89` en `backfill_history.py`).
+- Particularidad: la cuenta devuelve `currency: "XXX"` en la sesión, pero los movimientos llegan con `transaction_amount.currency = "EUR"`, que es lo que se guarda en `transactions.moneda`.
+
 ## BBVA — ⏳ soportado, no validado
 
 - `aspsp.name`: `"BBVA"`
