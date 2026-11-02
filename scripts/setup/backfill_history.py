@@ -56,7 +56,7 @@ with engine.begin() as conn:
                 (id, business_id, bank_connection_id, referencia_unica, fecha, importe, moneda,
                  tipo, contraparte, iban_contraparte, concepto_banco, concepto_detallado, categoria, referencia)
                 VALUES (:id, :bid, :bcid, :ref, :fecha, :importe, :moneda, :tipo, :contraparte,
-                        :iban, :concepto_banco, '', NULL, :referencia)
+                        :iban, :concepto_banco, NULL, NULL, :referencia)
                 ON CONFLICT (business_id, referencia_unica) DO NOTHING
             """), {
                 "id": str(uuid.uuid4()), "bid": conexion["business_id"], "bcid": BANK_CONNECTION_ID,
